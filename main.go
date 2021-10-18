@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"syscall"
+	"time"
 	"unsafe"
 
 	"github.com/4kills/go-zlib"
@@ -33,7 +34,7 @@ func SetEncodings(conn net.Conn) {
 	// -224: LastRect
 	// 7: Tight Encoding
 	// 1: CopyRect
-	encoding := []int32{-27, -224, 7, 1}
+	encoding := []int32{-27, -308, -223, -224, 7, 1}
 
 	var buf bytes.Buffer
 	n, err := buf.Write([]byte{2, 0, 0, uint8(len(encoding))})
@@ -189,7 +190,7 @@ func conFrameUpdateDetail(conn *TCPWrapper, pullch PullCh) {
 			break
 		}
 
-		if info.X > 1024 {
+		if info.X > 2048 {
 			buf := make([]byte, 200)
 			conn.Read(buf)
 			log.Fatal("Error:  log", rectcnt, " ", buf, info)
@@ -199,6 +200,48 @@ func conFrameUpdateDetail(conn *TCPWrapper, pullch PullCh) {
 
 		log.Println("Let's draw: ", info)
 		switch info.DrawKind {
+		case -308:
+			var pad struct {
+				NumScreen uint8
+				Pad1      uint8
+				Pad2      uint8
+				Pad3      uint8
+			}
+			var screen struct {
+				Id   uint32
+				X    uint16
+				Y    uint16
+				W    uint16
+				H    uint16
+				Flag uint32
+			}
+
+			err := binary.Read(conn, binary.BigEndian, &pad)
+			if err != nil {
+				log.Printf("error resize %v", err)
+			}
+			log.Print("Resize: ", pad)
+			err = binary.Read(conn, binary.BigEndian, &screen)
+			log.Print("Resize: ", screen)
+		case -223:
+			var pad struct {
+				NumScreen uint8
+				Pad1      uint8
+				Pad2      uint8
+				Pad3      uint8
+				Id        uint32
+				X         uint32
+				Y         uint32
+				W         uint32
+				H         uint32
+				Flag      uint32
+			}
+
+			err := binary.Read(conn, binary.BigEndian, pad)
+			if err != nil {
+				log.Printf("error resize %v", err)
+			}
+			log.Print("Resize: ", pad)
 		case 1:
 			var reuserect struct {
 				X uint16
@@ -391,6 +434,10 @@ func conFrameUpdateDetail(conn *TCPWrapper, pullch PullCh) {
 }
 
 var z ZlibStreamer
+var q struct {
+	w uint16
+	h uint16
+}
 
 type TCPWrapper struct {
 	Buffer *bufio.Reader
@@ -424,9 +471,12 @@ func con(conn net.Conn, bytesbuf *TCPWrapper, pullch PullCh) {
 	defer close(pullch)
 
 	z = ZlibStreamer{conn: bytesbuf}
+	updatetime := time.Now()
+	// first update
+	updater := NewUpdater(0, 0, int(q.w), int(q.h))
+	WriteRequest(conn, updater)
 
 	for {
-		WriteRequest(conn, NewUpdater(0, 0, 1024, 741))
 
 		var msgkind struct {
 			Kind  uint8
@@ -472,6 +522,13 @@ func con(conn net.Conn, bytesbuf *TCPWrapper, pullch PullCh) {
 		default:
 			log.Println("Unknown Event: ", msgkind)
 		}
+
+		curtime := time.Now()
+		updater := NewUpdater(0, 0, int(q.w), int(q.h))
+		log.Println("update time: ", curtime.Sub(updatetime))
+		updatetime = curtime
+
+		WriteRequest(conn, updater)
 	}
 }
 
@@ -504,11 +561,30 @@ func mouseMotionDetail(conn net.Conn, ev *sdl.MouseMotionEvent) {
 	WriteRequest(conn, Click{kind: 5, button: 0, x: uint16(ev.X), y: uint16(ev.Y)})
 }
 
+type DesktopSize struct {
+	Kind    uint8
+	Padding byte
+	Width   uint16
+	Height  uint16
+	// TODO Support Multidisplay
+	Screennum uint8
+	Padding2  byte
+	Id        uint32
+	X         uint16
+	Y         uint16
+	W         uint16
+	H         uint16
+	Flag      uint32
+}
+
 func run(conn net.Conn, ch PullCh) {
+
+	SetEncodings(conn)
 	var window *sdl.Window
 
 	winTitle := "VNC Client"
-	window, err := sdl.CreateWindow(winTitle, sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, 1024, 768, sdl.WINDOW_SHOWN)
+	//window, err := sdl.CreateWindow(winTitle, sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, 1024, 768, sdl.WINDOW_MAXIMIZED|sdl.WINDOW_RESIZABLE|sdl.WINDOW_SHOWN)
+	window, err := sdl.CreateWindow(winTitle, sdl.WINDOWPOS_UNDEFINED, sdl.WINDOWPOS_UNDEFINED, 1024, 768, sdl.WINDOW_RESIZABLE|sdl.WINDOW_SHOWN)
 
 	if err != nil {
 		log.Print(err)
@@ -518,13 +594,11 @@ func run(conn net.Conn, ch PullCh) {
 
 	running := true
 
-	cursurface, err := window.GetSurface()
+	//cursurface, err := window.GetSurface()
 	if err != nil {
 		log.Print(err)
 		running = false
 	}
-
-	SetEncodings(conn)
 
 	for running {
 		for event := sdl.PollEvent(); event != nil; event = sdl.PollEvent() {
@@ -541,9 +615,26 @@ func run(conn net.Conn, ch PullCh) {
 			case *sdl.MouseMotionEvent:
 				ev := event.(*sdl.MouseMotionEvent)
 				mouseMotionDetail(conn, ev)
+			case *sdl.WindowEvent:
+				ev := event.(*sdl.WindowEvent)
+
+				if ev.Event == sdl.WINDOWEVENT_RESIZED {
+					log.Println("Resize Event Begin!")
+					//cursurface, err = window.GetSurface()
+					winw, winh := window.GetSize()
+
+					q.w = uint16(winw)
+					q.h = uint16(winh)
+					WriteRequest(conn, DesktopSize{Kind: 251, Padding: 0, Width: uint16(winw), Height: uint16(winh), Screennum: 1, Padding2: 0, Id: 0, X: 0, Y: 0, W: uint16(winw), H: uint16(winh), Flag: 0})
+
+					updater := NewUpdater(0, 0, int(q.w), int(q.h))
+					WriteRequest(conn, updater)
+				}
+
 			}
 		}
 
+		cursurface, err := window.GetSurface()
 		for len(ch) > 0 {
 			x, ok := <-ch
 			if !ok {
