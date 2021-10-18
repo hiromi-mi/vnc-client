@@ -426,6 +426,8 @@ func con(conn net.Conn, bytesbuf *TCPWrapper, pullch PullCh) {
 	z = ZlibStreamer{conn: bytesbuf}
 
 	for {
+		WriteRequest(conn, NewUpdater(0, 0, 1024, 741))
+
 		var msgkind struct {
 			Kind  uint8
 			Dummy uint8
@@ -643,7 +645,6 @@ func run(conn net.Conn, ch PullCh) {
 			running = false
 		}
 
-		WriteRequest(conn, NewUpdater(0, 0, 1024, 741))
 	}
 
 	return
