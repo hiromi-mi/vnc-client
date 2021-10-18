@@ -29,7 +29,11 @@ func WriteRequest(conn net.Conn, u interface{}) {
 }
 
 func SetEncodings(conn net.Conn) {
-	encoding := []int32{-27, 7, 1}
+	// -27: JPEG
+	// -224: LastRect
+	// 7: Tight Encoding
+	// 1: CopyRect
+	encoding := []int32{-27, -224, 7, 1}
 
 	var buf bytes.Buffer
 	n, err := buf.Write([]byte{2, 0, 0, uint8(len(encoding))})
@@ -179,6 +183,12 @@ func conFrameUpdateDetail(conn *TCPWrapper, pullch PullCh) {
 			log.Println("Error rectinfo: ", err)
 			return
 		}
+
+		if info.W == 0 && info.H == 0 && info.X == 0 && info.Y == 0 {
+			log.Println("LastRect")
+			break
+		}
+
 		if info.X > 1024 {
 			buf := make([]byte, 200)
 			conn.Read(buf)
