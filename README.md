@@ -8,7 +8,10 @@
 ## How to use
 
 ```
-$ ssh -L 5900:loaclhost:5900 server
+$ ssh -L 5900:localhost:5900 server
+```
+
+```
 $ go mod tidy
 $ go build
 $ ./vnc-client
