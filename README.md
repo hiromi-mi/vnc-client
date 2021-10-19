@@ -1,9 +1,17 @@
-# vnc-client
-[PoC] VNC Client
+# Yet Another VNC Client [EXPERIMENTAL]
+
+## Supported
+
+- Compression With Tight Encoding
+- JPEG Compression
+- Desktop Size Adjustment
+- Clipboard (WIP)
 
 ## Dependency
-- sdl2
-- go
+- [Simple DirectMedia Layer](https://www.libsdl.org/)
+- [Go](golang.org)
+- [go-zlib](https://github.com/4kills/go-zlib/blob/master/LICENSE)
+- [go-sdl2](https://github.com/veandco/go-sdl2)
 
 ## How to use
 
@@ -17,3 +25,8 @@ $ go build
 $ ./vnc-client
 Password: <password>
 ```
+
+## See also
+
+- [The Remote Framebuffer Protocol](https://datatracker.ietf.org/doc/html/rfc6143)
+- [VNC/RFB Protocol Specification](https://github.com/rfbproto/rfbproto)
