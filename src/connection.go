@@ -28,7 +28,7 @@ func invertbit(buf []byte) {
 	}
 }
 
-func handshake(conn io.ReadWriteCloser) error {
+func Handshake(conn io.ReadWriteCloser) error {
 	_, err := conn.Write([]byte("RFB 003.008\n"))
 	if err != nil {
 		log.Print(err)
@@ -427,7 +427,7 @@ func (wrapper *TCPWrapper) Close() error {
 	return wrapper.Conn.Close()
 }
 
-func con(conn net.Conn, bytesbuf *TCPWrapper, pullch PullCh) {
+func Con(conn net.Conn, bytesbuf *TCPWrapper, pullch PullCh) {
 	defer close(pullch)
 
 	z = ZlibStreamer{conn: bytesbuf}

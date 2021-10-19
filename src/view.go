@@ -1,6 +1,7 @@
 package vncclient
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"unsafe"
@@ -41,9 +42,9 @@ type Screen struct {
 	Flag uint32
 }
 
-func KeyPress(keydown bool, key uint32) KP {
+func KeyPress(keydown uint32, key uint32) KP {
 	var keyint byte
-	if keydown {
+	if keydown == sdl.KEYDOWN {
 		keyint = 1
 	} else {
 		keyint = 0
@@ -53,19 +54,40 @@ func KeyPress(keydown bool, key uint32) KP {
 }
 
 func keyEventDetail(conn net.Conn, ev *sdl.KeyboardEvent) {
+	switch ev.Keysym.Mod {
+	case sdl.KMOD_LCTRL:
+		WriteRequest(conn, KeyPress(ev.Type, 0xffe3))
+	case sdl.KMOD_RCTRL:
+		WriteRequest(conn, KeyPress(ev.Type, 0xffe4))
+	case sdl.KMOD_LALT:
+		WriteRequest(conn, KeyPress(ev.Type, 0xffe9))
+	case sdl.KMOD_RALT:
+		WriteRequest(conn, KeyPress(ev.Type, 0xffea))
+	}
+
 	if ev.Keysym.Scancode == sdl.SCANCODE_RETURN {
-		WriteRequest(conn, KeyPress(ev.Type == sdl.KEYDOWN, 0xff0d))
+		WriteRequest(conn, KeyPress(ev.Type, 0xff0d))
+	} else if ev.Keysym.Scancode == sdl.SCANCODE_ESCAPE {
+		WriteRequest(conn, KeyPress(ev.Type, 0xff1b))
 	} else if sdl.K_SPACE <= ev.Keysym.Sym && ev.Keysym.Sym <= sdl.K_AT {
-		WriteRequest(conn, KeyPress(ev.Type == sdl.KEYDOWN, uint32(ev.Keysym.Sym)))
+		WriteRequest(conn, KeyPress(ev.Type, uint32(ev.Keysym.Sym)))
 	} else if sdl.K_a <= ev.Keysym.Sym && ev.Keysym.Sym <= sdl.K_z {
 		if ev.Keysym.Mod&sdl.KMOD_SHIFT == 0 {
-			WriteRequest(conn, KeyPress(ev.Type == sdl.KEYDOWN, uint32(ev.Keysym.Sym)))
+			WriteRequest(conn, KeyPress(ev.Type, uint32(ev.Keysym.Sym)))
 		} else {
 			// capital letter
-			WriteRequest(conn, KeyPress(ev.Type == sdl.KEYDOWN, uint32(ev.Keysym.Sym)-0x20))
+			WriteRequest(conn, KeyPress(ev.Type, uint32(ev.Keysym.Sym)-0x20))
 		}
 	} else if ev.Keysym.Sym == sdl.K_BACKSPACE {
-		WriteRequest(conn, KeyPress(ev.Type == sdl.KEYDOWN, 0xff08))
+		WriteRequest(conn, KeyPress(ev.Type, 0xff08))
+	} else if ev.Keysym.Sym == sdl.K_LCTRL {
+		WriteRequest(conn, KeyPress(ev.Type, 0xffe3))
+	} else if ev.Keysym.Sym == sdl.K_RCTRL {
+		WriteRequest(conn, KeyPress(ev.Type, 0xffe4))
+	} else if ev.Keysym.Sym == sdl.K_LALT {
+		WriteRequest(conn, KeyPress(ev.Type, 0xffe9))
+	} else if ev.Keysym.Sym == sdl.K_RALT {
+		WriteRequest(conn, KeyPress(ev.Type, 0xffea))
 	}
 }
 
@@ -78,7 +100,14 @@ func mouseEventDetail(conn net.Conn, ev *sdl.MouseButtonEvent) {
 }
 
 func mouseMotionEventDetail(conn net.Conn, ev *sdl.MouseMotionEvent) {
-	WriteRequest(conn, Click{kind: 5, button: 0, x: uint16(ev.X), y: uint16(ev.Y)})
+	button := ev.State
+	fmt.Println(button)
+	if button&sdl.ButtonLMask() > 0 {
+		WriteRequest(conn, Click{kind: 5, button: 1, x: uint16(ev.X), y: uint16(ev.Y)})
+	} else {
+		WriteRequest(conn, Click{kind: 5, button: byte(button), x: uint16(ev.X), y: uint16(ev.Y)})
+	}
+	// Depend on The similarity of button type
 }
 
 func WindowResizedEventDetail(conn net.Conn, ev *sdl.WindowEvent, winw, winh int32) {
@@ -91,7 +120,7 @@ func WindowResizedEventDetail(conn net.Conn, ev *sdl.WindowEvent, winw, winh int
 	WriteRequest(conn, updater)
 }
 
-func run(conn net.Conn, ch PullCh) {
+func Run(conn net.Conn, ch PullCh) {
 
 	SetEncodings(conn)
 	var window *sdl.Window

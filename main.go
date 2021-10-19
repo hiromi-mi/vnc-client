@@ -1,7 +1,8 @@
-package vncclient
+package main
 
 import (
 	"bufio"
+	"github.com/hiromi-mi/vnc-client/src"
 	"log"
 	"net"
 )
@@ -16,15 +17,20 @@ func main() {
 	}
 	defer conn.Close()
 
-	pull := make(PullCh, 1000)
+	err = vncclient.Handshake(conn)
+	if err != nil {
+		log.Print(err)
+		return
+	}
+	pull := make(vncclient.PullCh, 1000)
 
-	buffer := &TCPWrapper{
+	buffer := &vncclient.TCPWrapper{
 		Buffer: bufio.NewReaderSize(conn, 1024*768),
 		Conn:   conn,
 	}
-	go con(conn, buffer, pull)
+	go vncclient.Con(conn, buffer, pull)
 
-	run(conn, pull)
+	vncclient.Run(conn, pull)
 
 	return
 }
