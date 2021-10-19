@@ -62,7 +62,7 @@ func Handshake(conn io.ReadWriteCloser) error {
 
 	i := make([]byte, 16)
 	conn.Read(i)
-	log.Printf("4.5: %v", i)
+	//log.Printf("4.5: %v", i)
 
 	fmt.Printf("Password: ")
 	key, err := term.ReadPassword(int(syscall.Stdin))
@@ -77,12 +77,9 @@ func Handshake(conn io.ReadWriteCloser) error {
 
 	j := make([]byte, 16)
 	block.Encrypt(j[0:8], i[0:8])
-	log.Printf("5a: %v", j)
 	block.Encrypt(j[8:16], i[8:16])
-	log.Printf("5: %v", j)
 	conn.Write(j)
 	conn.Read(buf)
-	log.Printf("6: %v", buf)
 	if buf[3] != 0 {
 		log.Print("Error: Authentification Failed.")
 		log.Print(err)
@@ -112,9 +109,11 @@ func WriteRequest(conn net.Conn, u interface{}) {
 func SetEncodings(conn net.Conn) {
 	// -27: JPEG
 	// -224: LastRect
+	// -308: ExtendedDesktopResize
+	// 0x574d5666: VMWare Cursor Position (Relative Position)
 	// 7: Tight Encoding
 	// 1: CopyRect
-	encoding := []int32{-27, -308, -223, -224, 7, 1}
+	encoding := []int32{-27, -308, 0x574d5666, -224, 7, 1}
 
 	var buf bytes.Buffer
 	n, err := buf.Write([]byte{2, 0, 0, uint8(len(encoding))})

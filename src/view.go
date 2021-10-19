@@ -65,13 +65,13 @@ func keyEventDetail(conn net.Conn, ev *sdl.KeyboardEvent) {
 		WriteRequest(conn, KeyPress(ev.Type, 0xffea))
 	}
 
-	if ev.Keysym.Scancode == sdl.SCANCODE_RETURN {
+	if ev.Keysym.Sym == sdl.K_RETURN {
 		WriteRequest(conn, KeyPress(ev.Type, 0xff0d))
-	} else if ev.Keysym.Scancode == sdl.SCANCODE_ESCAPE {
+	} else if ev.Keysym.Sym == sdl.K_ESCAPE {
 		WriteRequest(conn, KeyPress(ev.Type, 0xff1b))
 	} else if sdl.K_SPACE <= ev.Keysym.Sym && ev.Keysym.Sym <= sdl.K_AT {
 		WriteRequest(conn, KeyPress(ev.Type, uint32(ev.Keysym.Sym)))
-	} else if sdl.K_a <= ev.Keysym.Sym && ev.Keysym.Sym <= sdl.K_z {
+	} else if sdl.K_LEFTBRACKET <= ev.Keysym.Sym && ev.Keysym.Sym <= sdl.K_z {
 		if ev.Keysym.Mod&sdl.KMOD_SHIFT == 0 {
 			WriteRequest(conn, KeyPress(ev.Type, uint32(ev.Keysym.Sym)))
 		} else {
@@ -80,6 +80,12 @@ func keyEventDetail(conn net.Conn, ev *sdl.KeyboardEvent) {
 		}
 	} else if ev.Keysym.Sym == sdl.K_BACKSPACE {
 		WriteRequest(conn, KeyPress(ev.Type, 0xff08))
+	} else if ev.Keysym.Sym == sdl.K_LSHIFT {
+		WriteRequest(conn, KeyPress(ev.Type, 0xffe1))
+	} else if ev.Keysym.Sym == sdl.K_RSHIFT {
+		WriteRequest(conn, KeyPress(ev.Type, 0xffe2))
+	} else if ev.Keysym.Sym == sdl.K_TAB {
+		WriteRequest(conn, KeyPress(ev.Type, 0xff09))
 	} else if ev.Keysym.Sym == sdl.K_LCTRL {
 		WriteRequest(conn, KeyPress(ev.Type, 0xffe3))
 	} else if ev.Keysym.Sym == sdl.K_RCTRL {
@@ -149,6 +155,12 @@ func Run(conn net.Conn, ch PullCh) {
 				running = false
 			case *sdl.KeyboardEvent:
 				ev := event.(*sdl.KeyboardEvent)
+				if ev.Keysym.Sym == sdl.K_F2 && ev.Type == sdl.KEYUP {
+					// Change Relative Input Mode
+					sdl.SetRelativeMouseMode(!sdl.GetRelativeMouseMode())
+					log.Printf("Relative Mouse Mode Changed: %+v", sdl.GetRelativeMouseMode())
+					break
+				}
 				keyEventDetail(conn, ev)
 			case *sdl.MouseButtonEvent:
 				ev := event.(*sdl.MouseButtonEvent)
@@ -156,6 +168,14 @@ func Run(conn net.Conn, ch PullCh) {
 				mouseEventDetail(conn, ev)
 			case *sdl.MouseMotionEvent:
 				ev := event.(*sdl.MouseMotionEvent)
+				if sdl.GetRelativeMouseMode() {
+					if ev.State&sdl.ButtonLMask() > 0 {
+						WriteRequest(conn, Click{kind: 5, button: 1, x: uint16(ev.X), y: uint16(ev.Y)})
+					} else {
+						WriteRequest(conn, Click{kind: 5, button: byte(ev.State), x: uint16(ev.X), y: uint16(ev.Y)})
+					}
+					break
+				}
 				mouseMotionEventDetail(conn, ev)
 			case *sdl.WindowEvent:
 				ev := event.(*sdl.WindowEvent)
