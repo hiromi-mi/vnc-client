@@ -14,8 +14,6 @@ type ZlibStreamer struct {
 
 func (s *ZlibStreamer) resetzlib(compctrl byte) {
 	for i := 0; i < 4; i++ {
-		// NO ZLIb header!  TODO
-
 		if compctrl&(1<<i) != 0 {
 			s.ZlibReaders[i].Reset(s.conn, nil)
 		}

@@ -291,14 +291,13 @@ func conFrameUpdateDetail(conn *TCPWrapper, pullch PullCh) {
 					// may add filter-id
 					// RGB 24bits
 					filterid := []uint8{0}
-					// TODO まちがえて compctrl にして意味不明になってた
 					n, err := conn.Read(filterid)
 					if n != 1 || err != nil {
 						log.Printf("error tight encoding filterid: %v", err)
 					}
 					log.Print("BasicCompression: ", compctrl[0], " ", filterid)
 
-					// 白黒なら1bit, そうでないなら8bitで送ってくる
+					// 白黒なら1bit, そうでないなら8bit
 					switch filterid[0] {
 					case 1:
 						log.Printf("Palette filter")
@@ -474,7 +473,7 @@ func Con(conn net.Conn, bytesbuf *TCPWrapper, pullch PullCh) {
 				log.Print("Error read copied message: ", err)
 				return
 			}
-			// TODO Japanese?
+			// TODO Support UTF-8 character
 			log.Println("string copied: ", string(y))
 			sdl.SetClipboardText(string(y))
 		case 0:
