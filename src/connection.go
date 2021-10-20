@@ -99,11 +99,12 @@ func Handshake(conn io.ReadWriteCloser) error {
 	return err
 }
 
-func WriteRequest(conn net.Conn, u interface{}) {
-	err := binary.Write(conn, binary.BigEndian, u)
-	if err != nil {
-		log.Print("WriteRequest: ", err)
-	}
+func WriteRequest(conn io.Writer, u interface{}) error {
+	return binary.Write(conn, binary.BigEndian, u)
+}
+
+func ReadRequest(conn io.Reader, u interface{}) error {
+	return binary.Read(conn, binary.BigEndian, u)
 }
 
 func SetEncodings(conn net.Conn) {

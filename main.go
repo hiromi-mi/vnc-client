@@ -2,9 +2,10 @@ package main
 
 import (
 	"bufio"
-	"github.com/hiromi-mi/vnc-client/src"
 	"log"
 	"net"
+
+	vncclient "github.com/hiromi-mi/vnc-client/src"
 )
 
 func main() {
@@ -30,7 +31,7 @@ func main() {
 	}
 	go vncclient.Con(conn, buffer, pull)
 
-	vncclient.Run(conn, pull)
+	vncclient.Do(conn, pull)
 
 	return
 }

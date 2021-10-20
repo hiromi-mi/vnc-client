@@ -2,15 +2,15 @@ package vncclient
 
 import (
 	"fmt"
+	"io"
 	"log"
-	"net"
 	"unsafe"
 
 	"github.com/veandco/go-sdl2/img"
 	"github.com/veandco/go-sdl2/sdl"
 )
 
-type KP struct {
+type KeyPress struct {
 	kind   byte
 	keyint byte
 	ph     uint16
@@ -42,62 +42,62 @@ type Screen struct {
 	Flag uint32
 }
 
-func KeyPress(keydown uint32, key uint32) KP {
+func NewKeyPress(keydown uint32, key uint32) KeyPress {
 	var keyint byte
 	if keydown == sdl.KEYDOWN {
 		keyint = 1
 	} else {
 		keyint = 0
 	}
-	kp := KP{kind: 4, keyint: keyint, ph: 0, key: key}
+	kp := KeyPress{kind: 4, keyint: keyint, ph: 0, key: key}
 	return kp
 }
 
-func keyEventDetail(conn net.Conn, ev *sdl.KeyboardEvent) {
+func keyEventDetail(conn io.Writer, ev *sdl.KeyboardEvent) {
 	switch ev.Keysym.Mod {
 	case sdl.KMOD_LCTRL:
-		WriteRequest(conn, KeyPress(ev.Type, 0xffe3))
+		WriteRequest(conn, NewKeyPress(ev.Type, 0xffe3))
 	case sdl.KMOD_RCTRL:
-		WriteRequest(conn, KeyPress(ev.Type, 0xffe4))
+		WriteRequest(conn, NewKeyPress(ev.Type, 0xffe4))
 	case sdl.KMOD_LALT:
-		WriteRequest(conn, KeyPress(ev.Type, 0xffe9))
+		WriteRequest(conn, NewKeyPress(ev.Type, 0xffe9))
 	case sdl.KMOD_RALT:
-		WriteRequest(conn, KeyPress(ev.Type, 0xffea))
+		WriteRequest(conn, NewKeyPress(ev.Type, 0xffea))
 	}
 
 	if ev.Keysym.Sym == sdl.K_RETURN {
-		WriteRequest(conn, KeyPress(ev.Type, 0xff0d))
+		WriteRequest(conn, NewKeyPress(ev.Type, 0xff0d))
 	} else if ev.Keysym.Sym == sdl.K_ESCAPE {
-		WriteRequest(conn, KeyPress(ev.Type, 0xff1b))
+		WriteRequest(conn, NewKeyPress(ev.Type, 0xff1b))
 	} else if sdl.K_SPACE <= ev.Keysym.Sym && ev.Keysym.Sym <= sdl.K_AT {
-		WriteRequest(conn, KeyPress(ev.Type, uint32(ev.Keysym.Sym)))
+		WriteRequest(conn, NewKeyPress(ev.Type, uint32(ev.Keysym.Sym)))
 	} else if sdl.K_LEFTBRACKET <= ev.Keysym.Sym && ev.Keysym.Sym <= sdl.K_z {
 		if ev.Keysym.Mod&sdl.KMOD_SHIFT == 0 {
-			WriteRequest(conn, KeyPress(ev.Type, uint32(ev.Keysym.Sym)))
+			WriteRequest(conn, NewKeyPress(ev.Type, uint32(ev.Keysym.Sym)))
 		} else {
 			// capital letter
-			WriteRequest(conn, KeyPress(ev.Type, uint32(ev.Keysym.Sym)-0x20))
+			WriteRequest(conn, NewKeyPress(ev.Type, uint32(ev.Keysym.Sym)-0x20))
 		}
 	} else if ev.Keysym.Sym == sdl.K_BACKSPACE {
-		WriteRequest(conn, KeyPress(ev.Type, 0xff08))
+		WriteRequest(conn, NewKeyPress(ev.Type, 0xff08))
 	} else if ev.Keysym.Sym == sdl.K_LSHIFT {
-		WriteRequest(conn, KeyPress(ev.Type, 0xffe1))
+		WriteRequest(conn, NewKeyPress(ev.Type, 0xffe1))
 	} else if ev.Keysym.Sym == sdl.K_RSHIFT {
-		WriteRequest(conn, KeyPress(ev.Type, 0xffe2))
+		WriteRequest(conn, NewKeyPress(ev.Type, 0xffe2))
 	} else if ev.Keysym.Sym == sdl.K_TAB {
-		WriteRequest(conn, KeyPress(ev.Type, 0xff09))
+		WriteRequest(conn, NewKeyPress(ev.Type, 0xff09))
 	} else if ev.Keysym.Sym == sdl.K_LCTRL {
-		WriteRequest(conn, KeyPress(ev.Type, 0xffe3))
+		WriteRequest(conn, NewKeyPress(ev.Type, 0xffe3))
 	} else if ev.Keysym.Sym == sdl.K_RCTRL {
-		WriteRequest(conn, KeyPress(ev.Type, 0xffe4))
+		WriteRequest(conn, NewKeyPress(ev.Type, 0xffe4))
 	} else if ev.Keysym.Sym == sdl.K_LALT {
-		WriteRequest(conn, KeyPress(ev.Type, 0xffe9))
+		WriteRequest(conn, NewKeyPress(ev.Type, 0xffe9))
 	} else if ev.Keysym.Sym == sdl.K_RALT {
-		WriteRequest(conn, KeyPress(ev.Type, 0xffea))
+		WriteRequest(conn, NewKeyPress(ev.Type, 0xffea))
 	}
 }
 
-func mouseEventDetail(conn net.Conn, ev *sdl.MouseButtonEvent) {
+func mouseEventDetail(conn io.Writer, ev *sdl.MouseButtonEvent) {
 	button := ev.State
 	// Depend on LEFT == 1, RIGHT == 3
 	button = button << (ev.Button - 1)
@@ -105,7 +105,7 @@ func mouseEventDetail(conn net.Conn, ev *sdl.MouseButtonEvent) {
 	WriteRequest(conn, Click{kind: 5, button: button, x: uint16(ev.X), y: uint16(ev.Y)})
 }
 
-func mouseMotionEventDetail(conn net.Conn, ev *sdl.MouseMotionEvent) {
+func mouseMotionEventDetail(conn io.Writer, ev *sdl.MouseMotionEvent) {
 	button := ev.State
 	fmt.Println(button)
 	if button&sdl.ButtonLMask() > 0 {
@@ -116,7 +116,7 @@ func mouseMotionEventDetail(conn net.Conn, ev *sdl.MouseMotionEvent) {
 	// Depend on The similarity of button type
 }
 
-func WindowResizedEventDetail(conn net.Conn, ev *sdl.WindowEvent, winw, winh int32) {
+func WindowResizedEventDetail(conn io.Writer, ev *sdl.WindowEvent, winw, winh int32) {
 	log.Println("Resize Event Begin!")
 	//cursurface, err = window.GetSurface()
 	WriteRequest(conn, DesktopSize{Kind: 251, Padding: 0, Width: uint16(winw), Height: uint16(winh), Screennum: 1, Padding2: 0})
@@ -126,7 +126,7 @@ func WindowResizedEventDetail(conn net.Conn, ev *sdl.WindowEvent, winw, winh int
 	WriteRequest(conn, updater)
 }
 
-func Run(conn net.Conn, ch PullCh) {
+func Do(conn io.ReadWriteCloser, ch PullCh) {
 
 	SetEncodings(conn)
 	var window *sdl.Window
