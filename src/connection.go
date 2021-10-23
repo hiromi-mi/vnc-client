@@ -107,7 +107,7 @@ func ReadRequest(conn io.Reader, u interface{}) error {
 	return binary.Read(conn, binary.BigEndian, u)
 }
 
-func SetEncodings(conn net.Conn) {
+func SetEncodings(conn io.Writer) {
 	// -27: JPEG
 	// -224: LastRect
 	// -308: ExtendedDesktopResize

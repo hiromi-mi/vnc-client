@@ -11,7 +11,7 @@ type Logger interface {
 	Debug(string, ...interface{})
 }
 
-var logger *Logger
+var logger *BaseLogger
 
 func SetDefaultLogger() {
 	logger = &BaseLogger{
@@ -23,8 +23,8 @@ type BaseLogger struct {
 	Logger *log.Logger
 }
 
-func SetLogger(l *Logger) {
-	logger = l
+func SetLogger(l *log.Logger) {
+	logger.Logger = l
 }
 
 func (bl BaseLogger) Fatal(format string, v ...interface{}) {
